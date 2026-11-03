@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VeriNews AI — Fake News & Misinformation Detector</title>
+
+  <!-- Inter Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Smooth transitions and scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+
+<body
+  class="bg-slate-50 text-slate-900 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-100 selection:text-indigo-800">
+
+  <!-- =========================================================================
+       Top Navigation Bar
+       ========================================================================= -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+
+      <!-- Brand Logo -->
+      <div class="flex items-center space-x-3">
+        <div
+          class="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-lg text-slate-900 tracking-tight">VeriNews</span>
+            <span
+              class="text-xs uppercase font-extrabold tracking-wider px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/60 rounded-md">AI
+              Suite</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">DistilBERT Misinformation & Credibility Classifier</p>
+        </div>
+      </div>
+
+      <!-- Live Diagnostics Badges -->
+      <div class="hidden md:flex items-center space-x-3 text-xs">
+
+        <!-- API Health Status -->
+        <div id="badge-api"
+          class="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="dot-api"></span>
+          <span id="text-api" class="font-medium">Connecting...</span>
+        </div>
+
+        <!-- Model Mode Status -->
+        <div id="badge-model"
+          class="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
+          <i data-lucide="cpu" class="w-3.5 h-3.5 text-slate-500"></i>
+          <span id="text-model" class="font-medium">Checking Model...</span>
+        </div>
+
+        <!-- Supabase Status -->
+        <div id="badge-db"
+          class="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
+          <i data-lucide="database" class="w-3.5 h-3.5 text-slate-500"></i>
+          <span id="text-db" class="font-medium">Supabase: Verifying</span>
+        </div>
+
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center space-x-2">
+        <button onclick="toggleModal('modal-setup')"
+          class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center space-x-1.5 shadow-sm">
+          <i data-lucide="terminal" class="w-4 h-4 text-slate-500"></i>
+          <span>Setup Guide</span>
+        </button>
+        <a href="/docs" target="_blank"
+          class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/60 transition flex items-center space-x-1.5">
+          <i data-lucide="file-code" class="w-4 h-4"></i>
+          <span>FastAPI Docs</span>
+        </a>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       Hero Section
+       ========================================================================= -->
+  <section class="py-8 bg-gradient-to-b from-white via-indigo-50/20 to-slate-50 border-b border-slate-200/70">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+      <div
+        class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold mb-4 shadow-sm">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-600"></i>
+        <span>Transformer-Powered Natural Language Classification</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        Fake News &amp; Misinformation Detector
+      </h1>
+      <p class="mt-2 text-base text-slate-600 max-w-2xl mx-auto">
+        Instantly analyze news articles, headlines, and web content using our fine-tuned DistilBERT transformer. Every
+        evaluation is logged to Supabase for historical tracking.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       Main Content Grid: Input Console & Output Feedback Card
+       ========================================================================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+      <!-- =====================================================================
+           LEFT COLUMN: Article Input Card (7 Cols)
+           ===================================================================== -->
+      <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 relative">
+
+        <!-- Card Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+              <i data-lucide="file-text" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Article Evaluation Console</h2>
+              <p class="text-xs text-slate-500">Paste an excerpt, complete news body, or press headline</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-1">
+            <button onclick="pasteClipboard()"
+              class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition"
+              title="Paste from clipboard">
+              <i data-lucide="clipboard" class="w-4 h-4"></i>
+            </button>
+            <button onclick="clearInput()"
+              class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-100 rounded-md transition"
+              title="Clear text">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sample News Buttons -->
+        <div class="my-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Quick Benchmark Samples</span>
+            <span class="text-xs text-indigo-600 font-medium">Click to auto-fill</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button onclick="loadSample(1)"
+              class="text-left p-2.5 rounded-lg border border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/40 transition text-xs group">
+              <span class="inline-flex items-center font-semibold text-emerald-700 space-x-1">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                <span>Sample 1: NASA Space Telescope</span>
+              </span>
+              <p class="text-slate-500 line-clamp-1 mt-0.5 text-[11px]">Astronomers confirm water vapor signatures on
+                exoplanet...</p>
+            </button>
+
+            <button onclick="loadSample(2)"
+              class="text-left p-2.5 rounded-lg border border-slate-200/90 hover:border-rose-300 hover:bg-rose-50/40 transition text-xs group">
+              <span class="inline-flex items-center font-semibold text-rose-700 space-x-1">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                <span>Sample 2: Miracle Cure Clickbait</span>
+              </span>
+              <p class="text-slate-500 line-clamp-1 mt-0.5 text-[11px]">Doctors shocked! Kitchen spice wipes out disease
+                in 24 hours...</p>
+            </button>
+
+            <button onclick="loadSample(3)"
+              class="text-left p-2.5 rounded-lg border border-slate-200/90 hover:border-indigo-300 hover:bg-indigo-50/40 transition text-xs group">
+              <span class="inline-flex items-center font-semibold text-emerald-700 space-x-1">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                <span>Sample 3: Central Bank Inflation</span>
+              </span>
+              <p class="text-slate-500 line-clamp-1 mt-0.5 text-[11px]">Federal Reserve keeps benchmark lending rate
+                unchanged...</p>
+            </button>
+
+            <button onclick="loadSample(4)"
+              class="text-left p-2.5 rounded-lg border border-slate-200/90 hover:border-rose-300 hover:bg-rose-50/40 transition text-xs group">
+              <span class="inline-flex items-center font-semibold text-rose-700 space-x-1">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                <span>Sample 4: Secret Alien Base</span>
+              </span>
+              <p class="text-slate-500 line-clamp-1 mt-0.5 text-[11px]">Leaked Pentagon whistleblower files reveal
+                hidden pyramid...</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- Text Input Area -->
+        <div class="relative mt-2">
+          <textarea id="article-text" rows="9"
+            placeholder="Paste news article, press release, or headline here to inspect for misinformation patterns..."
+            class="w-full p-4 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 transition resize-y font-normal leading-relaxed outline-none"
+            oninput="handleTextInput()"></textarea>
+        </div>
+
+        <!-- Word / Character Stats & Submit Button -->
+        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div class="flex items-center space-x-4 text-xs text-slate-500">
+            <span id="stat-words">0 words</span>
+            <span>&bull;</span>
+            <span id="stat-chars">0 characters</span>
+          </div>
+
+          <button id="btn-analyze" onclick="analyzeArticle()"
+            class="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span id="btn-icon">
+              <i data-lucide="wand-2" class="w-4 h-4"></i>
+            </span>
+            <span id="btn-text">Run Verification</span>
+          </button>
+        </div>
+
+        <!-- Error Alert Container -->
+        <div id="error-container"
+          class="hidden mt-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start space-x-2.5">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600 shrink-0 mt-0.5"></i>
+          <span id="error-message">An error occurred during evaluation.</span>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
+           RIGHT COLUMN: Interactive Result Feedback Card (5 Cols)
+           ===================================================================== -->
+      <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 flex flex-col">
+
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+              <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Analysis Verdict</h2>
+              <p class="text-xs text-slate-500">Confidence metrics &amp; probability breakdown</p>
+            </div>
+          </div>
+          <span id="badge-mode-indicator"
+            class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+            Standby
+          </span>
+        </div>
+
+        <!-- STATE 1: Empty / Standby Prompt -->
+        <div id="state-empty" class="flex-1 flex flex-col items-center justify-center text-center py-12 px-4">
+          <div
+            class="h-16 w-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 mb-4 border border-indigo-100 shadow-inner">
+            <i data-lucide="shield-alert" class="w-8 h-8"></i>
+          </div>
+          <h3 class="text-sm font-bold text-slate-800 mb-1">Awaiting News Submission</h3>
+          <p class="text-xs text-slate-500 max-w-xs leading-relaxed">
+            Input news text on the left or click one of our benchmark presets to compute inference classification.
+          </p>
+        </div>
+
+        <!-- STATE 2: Loading Spinner & Progress Shimmer -->
+        <div id="state-loading" class="hidden flex-1 flex flex-col items-center justify-center text-center py-14 px-4">
+          <div class="relative mb-5">
+            <div class="w-14 h-14 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center text-indigo-600">
+              <i data-lucide="cpu" class="w-5 h-5 animate-pulse"></i>
+            </div>
+          </div>
+          <h3 class="text-sm font-bold text-slate-800 mb-1">Evaluating Neural Layers</h3>
+          <p class="text-xs text-slate-500 max-w-xs animate-pulse">
+            Tokenizing text &amp; running DistilBERT attention layers...
+          </p>
+        </div>
+
+        <!-- STATE 3: Active Classification Result -->
+        <div id="state-result" class="hidden space-y-5">
+
+          <!-- Large High-Impact Verdict Banner -->
+          <div id="verdict-banner" class="p-5 rounded-2xl border transition-all flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+              <div id="verdict-icon-container" class="h-12 w-12 rounded-xl flex items-center justify-center shadow-sm">
+                <i id="verdict-icon" data-lucide="check-circle" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <span class="text-[10px] font-bold tracking-widest uppercase text-slate-500 block mb-0.5">Classification
+                  Verdict</span>
+                <h3 id="verdict-text" class="text-xl font-extrabold tracking-tight">REAL NEWS</h3>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] font-bold uppercase text-slate-500 block mb-0.5">Confidence</span>
+              <div class="text-2xl font-black font-mono" id="confidence-percentage">98.5%</div>
+            </div>
+          </div>
+
+          <!-- Dual Probability Bar Breakdown -->
+          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
+            <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+              <span>Class Probability Breakdown</span>
+              <span id="confidence-label" class="text-indigo-600 font-medium text-[11px]">High Confidence</span>
+            </div>
+
+            <!-- Probability Bars -->
+            <div class="space-y-2 text-xs">
+
+              <!-- Real Probability Bar -->
+              <div>
+                <div class="flex justify-between text-[11px] font-medium text-slate-600 mb-1">
+                  <span class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                    <span>Credible / Real News</span>
+                  </span>
+                  <span id="prob-real-text" class="font-mono font-bold text-slate-800">0%</span>
+                </div>
+                <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div id="prob-real-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                    style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Fake Probability Bar -->
+              <div>
+                <div class="flex justify-between text-[11px] font-medium text-slate-600 mb-1">
+                  <span class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+                    <span>Misinformation / Fake</span>
+                  </span>
+                  <span id="prob-fake-text" class="font-mono font-bold text-slate-800">0%</span>
+                </div>
+                <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div id="prob-fake-bar" class="h-full bg-rose-500 rounded-full transition-all duration-700"
+                    style="width: 0%"></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Telemetry & Database Indicators -->
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+              <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Latency</span>
+              <div class="flex items-center space-x-1 font-mono font-bold text-slate-800 text-sm mt-0.5">
+                <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span id="telemetry-latency">0 ms</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+              <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Supabase Sync</span>
+              <div class="flex items-center space-x-1 font-medium text-sm mt-0.5" id="telemetry-supabase">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600"></i>
+                <span class="text-emerald-700 text-xs">Saved to DB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Placeholder Warning Note (if weights not placed yet) -->
+          <div id="placeholder-warning"
+            class="hidden p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs">
+            <div class="flex items-start space-x-2">
+              <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+              <div>
+                <span class="font-bold">Placeholder Model Mode Active:</span>
+                <p class="mt-0.5 text-amber-700 text-[11px]">
+                  Place your fine-tuned <code class="bg-amber-100 px-1 py-0.5 rounded font-mono">best_model.pt</code>
+                  file into the <code class="bg-amber-100 px-1 py-0.5 rounded font-mono">model/</code> folder to engage
+                  full PyTorch DistilBERT sequence evaluation.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- =======================================================================
+         BOTTOM SECTION: Supabase Audit Logs Feed
+         ======================================================================= -->
+    <div class="mt-10 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6">
+
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+            <i data-lucide="history" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Supabase Audit Trail (<code
+                class="text-indigo-600 font-mono text-xs">prediction_logs</code>)</h2>
+            <p class="text-xs text-slate-500">Live feed of asynchronous evaluations logged into your database</p>
+          </div>
+        </div>
+
+        <button onclick="fetchSupabaseLogs()"
+          class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center space-x-1.5 shadow-sm">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-500"></i>
+          <span>Refresh Feed</span>
+        </button>
+      </div>
+
+      <!-- Logs Content Area -->
+      <div id="logs-container" class="mt-4">
+        <!-- Filled dynamically via JS -->
+        <div class="text-center py-8 text-xs text-slate-400">
+          Loading audit feed from Supabase...
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- =========================================================================
+       Footer
+       ========================================================================= -->
+  <footer class="mt-auto border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center space-x-2">
+        <span class="font-semibold text-slate-700">VeriNews AI</span>
+        <span>&bull;</span>
+        <span>Built with FastAPI, DistilBERT, Supabase &amp; Vercel</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="https://supabase.com" target="_blank" class="hover:text-indigo-600 transition">Supabase Docs</a>
+        <a href="https://huggingface.co/distilbert/distilbert-base-uncased" target="_blank"
+          class="hover:text-indigo-600 transition">DistilBERT Model</a>
+        <a href="https://vercel.com" target="_blank" class="hover:text-indigo-600 transition">Vercel Deploy</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =========================================================================
+       Setup Guide Modal
+       ========================================================================= -->
+  <div id="modal-setup"
+    class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto border border-slate-200 shadow-2xl p-6 relative">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i>
+          <span>Deployment &amp; Configuration Quick Guide</span>
+        </h3>
+        <button onclick="toggleModal('modal-setup')"
+          class="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4 text-xs text-slate-600 leading-relaxed">
+        <div>
+          <h4 class="font-bold text-slate-800 text-sm mb-1">1. Model Placement</h4>
+          <p>Place your fine-tuned PyTorch DistilBERT weights file inside the <code
+              class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">model/</code> folder named <code
+              class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">best_model.pt</code>.</p>
+        </div>
+
+        <div>
+          <h4 class="font-bold text-slate-800 text-sm mb-1">2. Supabase Table Creation</h4>
+          <p>Run the SQL script from <code
+              class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">schema.sql</code> in your Supabase SQL
+            Editor:</p>
+          <pre class="bg-slate-900 text-slate-100 p-3 rounded-lg mt-1 font-mono text-[11px] overflow-x-auto">
+CREATE TABLE IF NOT EXISTS public.prediction_logs (
+    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    news_text TEXT NOT NULL,
+    prediction VARCHAR(50) NOT NULL,
+    confidence NUMERIC(5, 2) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);</pre>
+        </div>
+
+        <div>
+          <h4 class="font-bold text-slate-800 text-sm mb-1">3. Environment Variables</h4>
+          <p>Set these in your <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">.env</code> file
+            or Vercel Environment Variables dashboard:</p>
+          <pre class="bg-slate-900 text-slate-100 p-3 rounded-lg mt-1 font-mono text-[11px] overflow-x-auto">
+SUPABASE_URL="https://xyzcompany.supabase.co"
+SUPABASE_KEY="your-anon-or-service-key"</pre>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-3 border-t border-slate-100 text-right">
+        <button onclick="toggleModal('modal-setup')"
+          class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg text-xs hover:bg-indigo-700 transition">
+          Close Guide
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       Application Logic & Interactivity Script
+       ========================================================================= -->
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Sample dataset records
+    const SAMPLE_TEXTS = {
+      1: "A landmark study published today in the Astrophysical Journal reveals that astronomers utilizing NASA's James Webb Space Telescope have detected definitive atmospheric biosignature candidates, including methane and carbon dioxide, in the atmosphere of habitable-zone exoplanet K2-18b, situated 120 light-years from Earth.",
+      2: "SHOCKING SECRET: Leaked military papers reveal that drinking two drops of this secret boiled jungle root immediately annihilates 100% of all cancerous tumors in 48 hours! Mainstream doctors and big pharmaceutical companies are desperately trying to ban this video before you discover the truth!",
+      3: "The Federal Reserve's Federal Open Market Committee announced this afternoon that it will maintain the benchmark federal funds target rate in the 5.25% to 5.50% range. Chairman Jerome Powell cited continuing signs of moderating consumer inflation alongside resilient labor market conditions as the primary basis for the policy decision.",
+      4: "URGENT GLOBAL ALERT: Whistleblowers have confirmed that ancient alien pyramids hidden beneath the Antarctic ice sheet were activated last night by secret globalist elites to control global weather patterns and manipulate the stock market! Watch before this page gets deleted by the authorities!"
+    };
+
+    function toggleModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.toggle('hidden');
+    }
+
+    function handleTextInput() {
+      const text = document.getElementById('article-text').value;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const chars = text.length;
+
+      document.getElementById('stat-words').textContent = `${words} words`;
+      document.getElementById('stat-chars').textContent = `${chars} characters`;
+    }
+
+    function loadSample(id) {
+      const text = SAMPLE_TEXTS[id];
+      if (text) {
+        const textarea = document.getElementById('article-text');
+        textarea.value = text;
+        handleTextInput();
+        textarea.focus();
+      }
+    }
+
+    function clearInput() {
+      document.getElementById('article-text').value = '';
+      handleTextInput();
+      hideError();
+    }
+
+    async function pasteClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('article-text').value = text;
+        handleTextInput();
+      } catch (err) {
+        showError("Clipboard access not allowed or unavailable in this browser.");
+      }
+    }
+
+    function showError(msg) {
+      const container = document.getElementById('error-container');
+      const text = document.getElementById('error-message');
+      text.textContent = msg;
+      container.classList.remove('hidden');
+    }
+
+    function hideError() {
+      const container = document.getElementById('error-container');
+      container.classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------------------
+    // Health Check & Diagnostics
+    // -------------------------------------------------------------------------
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health');
+        if (!res.ok) throw new Error('Health check non-200');
+        const data = await res.json();
+
+        // API Status Badge
+        const dotApi = document.getElementById('dot-api');
+        const textApi = document.getElementById('text-api');
+        dotApi.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        textApi.textContent = `API Online (${data.device.toUpperCase()})`;
+
+        // Model Status Badge
+        const textModel = document.getElementById('text-model');
+        if (data.model_loaded && data.model_mode === 'distilbert_weights') {
+          textModel.textContent = 'DistilBERT: Weights Loaded';
+        } else {
+          textModel.textContent = 'Model: Heuristic / Placeholder';
+        }
+
+        // Supabase Status Badge
+        const textDb = document.getElementById('text-db');
+        if (data.supabase_connected) {
+          textDb.textContent = 'Supabase: Connected';
+          textDb.parentElement.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+        } else {
+          textDb.textContent = 'Supabase: Unconfigured';
+        }
+
+      } catch (err) {
+        const dotApi = document.getElementById('dot-api');
+        const textApi = document.getElementById('text-api');
+        dotApi.className = 'w-2 h-2 rounded-full bg-rose-500';
+        textApi.textContent = 'API Offline';
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Main Prediction Request
+    // -------------------------------------------------------------------------
+    async function analyzeArticle() {
+      hideError();
+      const text = document.getElementById('article-text').value.trim();
+
+      if (!text || text.length < 5) {
+        showError("Please enter at least 5 characters of article text or select a preset sample.");
+        return;
+      }
+
+      // UI Loading States
+      const btn = document.getElementById('btn-analyze');
+      const btnIcon = document.getElementById('btn-icon');
+      const btnText = document.getElementById('btn-text');
+
+      btn.disabled = true;
+      btnIcon.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
+      btnText.textContent = "Analyzing NLP Patterns...";
+
+      document.getElementById('state-empty').classList.add('hidden');
+      document.getElementById('state-result').classList.add('hidden');
+      document.getElementById('state-loading').classList.remove('hidden');
+
+      try {
+        const response = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || `Server returned error status ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderResult(data);
+
+        // Refresh audit logs feed after prediction
+        fetchSupabaseLogs();
+
+      } catch (err) {
+        showError(`Inference request failed: ${err.message}`);
+        document.getElementById('state-empty').classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btnIcon.innerHTML = '<i data-lucide="wand-2" class="w-4 h-4"></i>';
+        btnText.textContent = "Run Verification";
+        document.getElementById('state-loading').classList.add('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Render Results on UI
+    // -------------------------------------------------------------------------
+    function renderResult(data) {
+      document.getElementById('state-empty').classList.add('hidden');
+      document.getElementById('state-loading').classList.add('hidden');
+      document.getElementById('state-result').classList.remove('hidden');
+
+      const isReal = (data.verdict.toLowerCase() === 'real');
+      const verdictBanner = document.getElementById('verdict-banner');
+      const verdictIconContainer = document.getElementById('verdict-icon-container');
+      const verdictIcon = document.getElementById('verdict-icon');
+      const verdictText = document.getElementById('verdict-text');
+      const confidenceNumber = document.getElementById('confidence-percentage');
+
+      confidenceNumber.textContent = `${data.confidence.toFixed(1)}%`;
+
+      if (isReal) {
+        verdictBanner.className = 'p-5 rounded-2xl border bg-emerald-50/70 border-emerald-200/90 text-emerald-950 flex items-center justify-between shadow-sm';
+        verdictIconContainer.className = 'h-12 w-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200';
+        verdictIcon.setAttribute('data-lucide', 'check-circle-2');
+        verdictText.textContent = 'REAL NEWS';
+        verdictText.className = 'text-xl font-extrabold tracking-tight text-emerald-800';
+      } else {
+        verdictBanner.className = 'p-5 rounded-2xl border bg-rose-50/70 border-rose-200/90 text-rose-950 flex items-center justify-between shadow-sm';
+        verdictIconContainer.className = 'h-12 w-12 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-md shadow-rose-200';
+        verdictIcon.setAttribute('data-lucide', 'alert-triangle');
+        verdictText.textContent = 'MISINFORMATION';
+        verdictText.className = 'text-xl font-extrabold tracking-tight text-rose-800';
+      }
+
+      // Probabilities Breakdown
+      const realProb = data.probabilities['Real'] || (isReal ? data.confidence : (100 - data.confidence));
+      const fakeProb = data.probabilities['Fake'] || (!isReal ? data.confidence : (100 - data.confidence));
+
+      document.getElementById('prob-real-text').textContent = `${realProb.toFixed(1)}%`;
+      document.getElementById('prob-real-bar').style.width = `${realProb}%`;
+
+      document.getElementById('prob-fake-text').textContent = `${fakeProb.toFixed(1)}%`;
+      document.getElementById('prob-fake-bar').style.width = `${fakeProb}%`;
+
+      // Confidence tier label
+      const confLabel = document.getElementById('confidence-label');
+      if (data.confidence >= 90) {
+        confLabel.textContent = 'High Confidence';
+        confLabel.className = 'text-indigo-600 font-semibold text-[11px]';
+      } else if (data.confidence >= 70) {
+        confLabel.textContent = 'Moderate Confidence';
+        confLabel.className = 'text-amber-600 font-semibold text-[11px]';
+      } else {
+        confLabel.textContent = 'Borderline Ambiguity';
+        confLabel.className = 'text-slate-600 font-semibold text-[11px]';
+      }
+
+      // Telemetry
+      document.getElementById('telemetry-latency').textContent = `${data.latency_ms} ms`;
+      const dbIndicator = document.getElementById('telemetry-supabase');
+      if (data.logged_to_supabase) {
+        dbIndicator.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600"></i><span class="text-emerald-700 font-medium">Logged to Supabase</span>';
+      } else {
+        dbIndicator.innerHTML = '<i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i><span class="text-slate-500 font-medium">Local Only (No DB)</span>';
+      }
+
+      // Model Mode Pill
+      const modePill = document.getElementById('badge-mode-indicator');
+      const warningBox = document.getElementById('placeholder-warning');
+      if (data.model_mode === 'distilbert_weights') {
+        modePill.textContent = 'DistilBERT Live';
+        modePill.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200';
+        warningBox.classList.add('hidden');
+      } else {
+        modePill.textContent = 'Simulation Mode';
+        modePill.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200';
+        warningBox.classList.remove('hidden');
+      }
+
+      lucide.createIcons();
+    }
+
+    // -------------------------------------------------------------------------
+    // Supabase Logs Fetcher
+    // -------------------------------------------------------------------------
+    async function fetchSupabaseLogs() {
+      const container = document.getElementById('logs-container');
+      try {
+        const res = await fetch('/api/logs?limit=6');
+        const data = await res.json();
+
+        if (data.status === 'unconfigured') {
+          container.innerHTML = `
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+              <p class="text-xs text-slate-500">
+                Supabase credentials not configured in <code class="font-mono bg-slate-200 px-1 py-0.5 rounded text-slate-700">.env</code>.
+                Predictions run normally, but historical database logging is currently bypassed.
+              </p>
+            </div>
+          `;
+          return;
+        }
+
+        if (!data.logs || data.logs.length === 0) {
+          container.innerHTML = `
+            <div class="p-6 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center">
+              <i data-lucide="inbox" class="w-6 h-6 text-slate-400 mx-auto mb-2"></i>
+              <p class="text-xs text-slate-500 font-medium">No prediction logs recorded yet. Run your first analysis above!</p>
+            </div>
+          `;
+          lucide.createIcons();
+          return;
+        }
+
+        let html = '<div class="overflow-x-auto"><table class="w-full text-left text-xs">';
+        html += `
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+              <th class="py-2.5 px-3">Verdict</th>
+              <th class="py-2.5 px-3">Confidence</th>
+              <th class="py-2.5 px-3">Article Snippet</th>
+              <th class="py-2.5 px-3 text-right">Timestamp</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+        `;
+
+        data.logs.forEach(log => {
+          const isReal = (log.prediction.toLowerCase() === 'real');
+          const badgeClass = isReal
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-rose-50 text-rose-700 border-rose-200';
+          const icon = isReal ? 'check-circle' : 'alert-triangle';
+          const dateStr = new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+          html += `
+            <tr class="hover:bg-slate-50/80 transition">
+              <td class="py-2.5 px-3 whitespace-nowrap">
+                <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full border text-[11px] font-bold ${badgeClass}">
+                  <i data-lucide="${icon}" class="w-3 h-3"></i>
+                  <span>${log.prediction}</span>
+                </span>
+              </td>
+              <td class="py-2.5 px-3 font-mono font-bold text-slate-800">
+                ${Number(log.confidence).toFixed(1)}%
+              </td>
+              <td class="py-2.5 px-3 max-w-md truncate text-slate-600 font-normal">
+                ${escapeHtml(log.news_text)}
+              </td>
+              <td class="py-2.5 px-3 text-right text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                ${dateStr}
+              </td>
+            </tr>
+          `;
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+        lucide.createIcons();
+
+      } catch (err) {
+        container.innerHTML = `
+          <div class="text-xs text-slate-400 text-center py-4">
+            Could not retrieve logs from Supabase: ${err.message}
+          </div>
+        `;
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Auto-boot diagnostics and feeds on load
+    window.addEventListener('DOMContentLoaded', () => {
+      checkHealth();
+      fetchSupabaseLogs();
+      handleTextInput();
+    });
+  </script>
+</body>
+
+</html>
