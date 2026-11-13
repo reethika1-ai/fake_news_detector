@@ -1,28 +1,21 @@
-# Byte-compiled / optimized / DLL files
+# Python bytecode & cache
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Environment and secrets
-.env
-.env.local
-
-# Virtual environments
-venv/
 .venv/
 env/
-ENV/
+venv/
 
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
+# Model weights and datasets (Prevent Vercel lambda size overload)
+model/*.pt
+model/*.bin
+data/
+*.csv
+*.json
 
-# Operating System files
+# Environment variables
+.env
+
+# OS generated files
 .DS_Store
 Thumbs.db
-
-# Note on large PyTorch models (>100MB exceeds GitHub's standard file limit):
-# If you are not using Git LFS, uncomment the line below to prevent commit rejection:
-# model/best_model.pt
-
