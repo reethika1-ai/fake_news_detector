@@ -85,7 +85,7 @@
               class="text-xs uppercase font-extrabold tracking-wider px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/60 rounded-md">AI
               Suite</span>
           </div>
-          <p class="text-xs text-slate-500 font-medium">DistilBERT Misinformation & Credibility Classifier</p>
+          <p class="text-xs text-slate-500 font-medium">BiLSTM &mdash; 50 Epochs Trained Classifier</p>
         </div>
       </div>
 
@@ -140,14 +140,14 @@
       <div
         class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold mb-4 shadow-sm">
         <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-600"></i>
-        <span>Transformer-Powered Natural Language Classification</span>
+        <span>Bidirectional LSTM &mdash; 50 Epochs Academic Pipeline</span>
       </div>
       <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
         Fake News &amp; Misinformation Detector
       </h1>
       <p class="mt-2 text-base text-slate-600 max-w-2xl mx-auto">
-        Instantly analyze news articles, headlines, and web content using our fine-tuned DistilBERT transformer. Every
-        evaluation is logged to Supabase for historical tracking.
+        Instantly analyze news articles, headlines, and web content using our custom Bidirectional LSTM (BiLSTM) trained
+        for 50 epochs on the ISOT dataset. Every evaluation is logged to Supabase for auditability.
       </p>
     </div>
   </section>
@@ -314,7 +314,7 @@
           </div>
           <h3 class="text-sm font-bold text-slate-800 mb-1">Evaluating Neural Layers</h3>
           <p class="text-xs text-slate-500 max-w-xs animate-pulse">
-            Tokenizing text &amp; running DistilBERT attention layers...
+            Tokenizing text &amp; running Bidirectional LSTM layers (50 Epochs Trained)...
           </p>
         </div>
 
@@ -409,9 +409,9 @@
               <div>
                 <span class="font-bold">Placeholder Model Mode Active:</span>
                 <p class="mt-0.5 text-amber-700 text-[11px]">
-                  Place your fine-tuned <code class="bg-amber-100 px-1 py-0.5 rounded font-mono">best_model.pt</code>
+                  Place your trained <code class="bg-amber-100 px-1 py-0.5 rounded font-mono">best_model.pt</code>
                   file into the <code class="bg-amber-100 px-1 py-0.5 rounded font-mono">model/</code> folder to engage
-                  full PyTorch DistilBERT sequence evaluation.
+                  full PyTorch BiLSTM (50 Epochs Trained) sequence evaluation.
                 </p>
               </div>
             </div>
@@ -467,12 +467,11 @@
       <div class="flex items-center space-x-2">
         <span class="font-semibold text-slate-700">VeriNews AI</span>
         <span>&bull;</span>
-        <span>Built with FastAPI, DistilBERT, Supabase &amp; Vercel</span>
+        <span>Built with FastAPI, PyTorch BiLSTM (50 Epochs), Supabase &amp; Vercel</span>
       </div>
       <div class="flex items-center space-x-4">
         <a href="https://supabase.com" target="_blank" class="hover:text-indigo-600 transition">Supabase Docs</a>
-        <a href="https://huggingface.co/distilbert/distilbert-base-uncased" target="_blank"
-          class="hover:text-indigo-600 transition">DistilBERT Model</a>
+        <span class="text-slate-400">BiLSTM (50 Epochs)</span>
         <a href="https://vercel.com" target="_blank" class="hover:text-indigo-600 transition">Vercel Deploy</a>
       </div>
     </div>
@@ -499,8 +498,8 @@
       <div class="mt-4 space-y-4 text-xs text-slate-600 leading-relaxed">
         <div>
           <h4 class="font-bold text-slate-800 text-sm mb-1">1. Model Placement</h4>
-          <p>Place your fine-tuned PyTorch DistilBERT weights file inside the <code
-              class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">model/</code> folder named <code
+          <p>The scratch-built PyTorch BiLSTM weights trained for 50 epochs reside in the <code
+              class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">model/</code> folder as <code
               class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">best_model.pt</code>.</p>
         </div>
 
@@ -622,8 +621,15 @@ SUPABASE_KEY="your-anon-or-service-key"</pre>
 
         // Model Status Badge
         const textModel = document.getElementById('text-model');
-        if (data.model_loaded && data.model_mode === 'distilbert_weights') {
+        const badgeModel = document.getElementById('badge-model');
+        if (data.model_loaded && data.model_mode === 'bilstm_50_epochs') {
+          textModel.textContent = 'BiLSTM: 50 Epochs Loaded';
+          badgeModel.classList.remove('bg-slate-100', 'text-slate-600');
+          badgeModel.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+        } else if (data.model_loaded && data.model_mode === 'distilbert_weights') {
           textModel.textContent = 'DistilBERT: Weights Loaded';
+          badgeModel.classList.remove('bg-slate-100', 'text-slate-600');
+          badgeModel.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
         } else {
           textModel.textContent = 'Model: Heuristic / Placeholder';
         }
@@ -766,7 +772,11 @@ SUPABASE_KEY="your-anon-or-service-key"</pre>
       // Model Mode Pill
       const modePill = document.getElementById('badge-mode-indicator');
       const warningBox = document.getElementById('placeholder-warning');
-      if (data.model_mode === 'distilbert_weights') {
+      if (data.model_mode === 'bilstm_50_epochs') {
+        modePill.textContent = 'BiLSTM (50 Epochs)';
+        modePill.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200';
+        warningBox.classList.add('hidden');
+      } else if (data.model_mode === 'distilbert_weights') {
         modePill.textContent = 'DistilBERT Live';
         modePill.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200';
         warningBox.classList.add('hidden');

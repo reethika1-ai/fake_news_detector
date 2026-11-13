@@ -1,28 +1,36 @@
-# Model Weights Directory
+# Model Weights Directory — VeriNews AI
 
-Place your pre-trained DistilBERT sequence classification weights file here:
+This directory houses the custom scratch-built Bidirectional LSTM (**FakeNewsBiLSTM**) weights checkpoint trained for **50 Epochs** on the ISOT Fake News Dataset.
 
 ```
 model/
-└── best_model.pt
+├── best_model.pt    # PyTorch 50-epoch checkpoint with state_dict, config & embedded vocab
+├── vocab.json       # Vocabulary dictionary mapping words to token indices
+└── README.md        # Documentation
 ```
 
-## Supported Formats for `best_model.pt`:
-1. **PyTorch State Dictionary (`state_dict`)**:
-   Standard PyTorch weights saved via:
-   ```python
-   torch.save(model.state_dict(), "best_model.pt")
-   # OR
-   torch.save({"state_dict": model.state_dict()}, "best_model.pt")
-   ```
-   The backend will instantiate `DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=2)` and load the weights.
+## Checkpoint Structure:
+The checkpoint file `model/best_model.pt` contains:
+- `architecture`: `"FakeNewsBiLSTM"`
+- `epochs`: `50`
+- `best_epoch`: `50`
+- `best_val_acc`: `100.0`
+- `model_config`:
+  - `vocab_size`: Total unique tokens in fitted vocabulary
+  - `embed_dim`: `64`
+  - `hidden_dim`: `64` (Bidirectional concatenation = `128`)
+  - `num_layers`: `2`
+  - `bidirectional`: `True`
+  - `dropout`: `0.3`
+  - `num_classes`: `1`
+  - `max_len`: `100`
+- `model_state_dict`: Saved weights tensor dictionary
+- `vocab`: Embedded vocabulary dictionary mapping word strings to index integers
+- `created_at`: UTC timestamp
 
-2. **Complete PyTorch Model Object**:
-   Saved via:
-   ```python
-   torch.save(model, "best_model.pt")
-   ```
-
-## Note on Fallback Mode:
-If `best_model.pt` is not present, the FastAPI server will gracefully boot in **simulation / heuristic mode** so you can develop, inspect, and test the full API and frontend without crashes. Once you copy your `best_model.pt` file into this folder and restart the server, the backend will automatically load your fine-tuned DistilBERT model.
-
+## Training & Retraining:
+To retrain or run training with your own dataset, run:
+```bash
+python -u train.py --epochs 50 --batch-size 64 --lr 0.001
+```
+The script loads `data/True.csv` and `data/Fake.csv`, fits the `SimpleTokenizer`, trains for exactly 50 epochs, and automatically updates `model/best_model.pt` and `model/vocab.json`.

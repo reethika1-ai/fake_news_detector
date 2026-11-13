@@ -1,11 +1,25 @@
+#!/usr/bin/env python3
+"""
+=============================================================================
+VeriNews AI — Backend Inference & Model Verification Suite
+=============================================================================
+Tests:
+1. Model file existence and checkpoint integrity (BiLSTM 50 Epochs).
+2. Model loading into evaluation mode (model.eval(), training == False).
+3. Supabase client initialization via .env credentials.
+4. GET /api/health endpoint payload verification.
+5. POST /api/predict inference with Real news sample.
+6. POST /api/predict inference with Misinformation / Fake news sample.
+=============================================================================
+"""
+
 import time
 import json
 import torch
-import numpy as np
 from fastapi import BackgroundTasks
 
 print("=" * 70, flush=True)
-print("VERIFYING LOCAL FASTAPI BACKEND & DISTILBERT MODEL INITIALIZATION", flush=True)
+print("VERIFYING LOCAL FASTAPI BACKEND & BiLSTM (50 EPOCHS) MODEL", flush=True)
 print("=" * 70, flush=True)
 
 # 1. Import application and state
@@ -29,7 +43,7 @@ print(f"    Exists: {MODEL_PATH.exists()}", flush=True)
 if MODEL_PATH.exists():
     print(f"    File Size: {MODEL_PATH.stat().st_size / (1024 * 1024):.2f} MB", flush=True)
 
-print("\n[2] Initializing Supabase & Loading DistilBERT...", flush=True)
+print("\n[2] Initializing Supabase & Loading BiLSTM (50 Epochs)...", flush=True)
 init_supabase()
 t0 = time.perf_counter()
 load_model_and_tokenizer()
@@ -42,7 +56,7 @@ print(f"    Supabase Client: {app_module.supabase_client is not None}", flush=Tr
 print(f"    Initialization Latency: {init_time:.2f} ms", flush=True)
 
 assert app_module.model_loaded is True, "ERROR: Model failed to load!"
-assert app_module.model_mode == "distilbert_weights", f"ERROR: Expected 'distilbert_weights', got '{app_module.model_mode}'"
+assert app_module.model_mode == "bilstm_50_epochs", f"ERROR: Expected 'bilstm_50_epochs', got '{app_module.model_mode}'"
 assert app_module.model is not None, "ERROR: Model instance is None"
 assert app_module.model.training is False, "ERROR: Model is not in eval mode!"
 assert app_module.supabase_client is not None, "ERROR: Supabase client is not initialized!"
@@ -61,7 +75,7 @@ health = run_coro(health_check())
 print("    Health Response:", json.dumps(health, indent=2), flush=True)
 assert health["status"] == "healthy"
 assert health["model_loaded"] is True
-assert health["model_mode"] == "distilbert_weights"
+assert health["model_mode"] == "bilstm_50_epochs"
 assert health["supabase_connected"] is True, "ERROR: supabase_connected must be True!"
 
 # 3. Test Prediction 1 (Real News)
@@ -80,7 +94,7 @@ print(f"    Probabilities: {res1.probabilities}", flush=True)
 print(f"    Latency:       {res1.latency_ms} ms", flush=True)
 print(f"    Model Mode:    {res1.model_mode}", flush=True)
 assert res1.verdict == "Real", f"Expected 'Real', got '{res1.verdict}'"
-assert res1.model_mode == "distilbert_weights"
+assert res1.model_mode == "bilstm_50_epochs"
 
 # 4. Test Prediction 2 (Fake News / Misinformation)
 print("\n[5] Testing POST /api/predict with Misinformation / Fake News Article...", flush=True)
@@ -98,10 +112,10 @@ print(f"    Probabilities: {res2.probabilities}", flush=True)
 print(f"    Latency:       {res2.latency_ms} ms", flush=True)
 print(f"    Model Mode:    {res2.model_mode}", flush=True)
 assert res2.verdict == "Fake", f"Expected 'Fake', got '{res2.verdict}'"
-assert res2.model_mode == "distilbert_weights"
+assert res2.model_mode == "bilstm_50_epochs"
 
 print("\n" + "=" * 70, flush=True)
 print("SUCCESS: ALL LOCAL BACKEND INFERENCE VERIFICATIONS PASSED!", flush=True)
-print("DistilBERT weights from 'model/best_model.pt' are active, running in eval mode,", flush=True)
-print("and predicting accurately with sub-second inference latency.", flush=True)
+print("Custom BiLSTM (50 Epochs Trained) weights from 'model/best_model.pt' are active,", flush=True)
+print("running in eval mode, and predicting accurately with sub-second inference latency.", flush=True)
 print("=" * 70, flush=True)
