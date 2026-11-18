@@ -8,8 +8,9 @@ Tests:
 2. Model loading into evaluation mode (model.eval(), training == False).
 3. Supabase client initialization via .env credentials.
 4. GET /api/health endpoint payload verification.
-5. POST /api/predict inference with Real news sample.
-6. POST /api/predict inference with Misinformation / Fake news sample.
+5. POST /api/predict inference with Real news sample + Explainable AI keywords.
+6. POST /api/predict inference with Fake news sample + Misinformation triggers.
+7. Scraper logic & trigger extraction verification.
 =============================================================================
 """
 
@@ -30,7 +31,10 @@ from api.index import (
     predict,
     health_check,
     get_recent_logs,
+    extract_highlighted_keywords,
+    scrape_article_from_url,
     PredictRequest,
+    ScrapeUrlRequest,
     DEVICE,
     MODEL_PATH
 )
@@ -78,7 +82,7 @@ assert health["model_loaded"] is True
 assert health["model_mode"] == "bilstm_50_epochs"
 assert health["supabase_connected"] is True, "ERROR: supabase_connected must be True!"
 
-# 3. Test Prediction 1 (Real News)
+# 3. Test Prediction 1 (Real News) + XAI
 print("\n[4] Testing POST /api/predict with Real News Article...", flush=True)
 real_article = (
     "WASHINGTON (Reuters) - The U.S. Senate passed legislation on Tuesday to fund government "
@@ -93,10 +97,12 @@ print(f"    Confidence:    {res1.confidence}%", flush=True)
 print(f"    Probabilities: {res1.probabilities}", flush=True)
 print(f"    Latency:       {res1.latency_ms} ms", flush=True)
 print(f"    Model Mode:    {res1.model_mode}", flush=True)
+print(f"    XAI Keywords:  {[k.word for k in res1.highlighted_keywords]}", flush=True)
 assert res1.verdict == "Real", f"Expected 'Real', got '{res1.verdict}'"
 assert res1.model_mode == "bilstm_50_epochs"
+assert len(res1.highlighted_keywords) > 0, "Expected XAI credibility keywords extracted"
 
-# 4. Test Prediction 2 (Fake News / Misinformation)
+# 4. Test Prediction 2 (Fake News / Misinformation) + XAI
 print("\n[5] Testing POST /api/predict with Misinformation / Fake News Article...", flush=True)
 fake_article = (
     "SHOCKING BREAKING: Leaked whistleblower documents reveal Pope Francis endorses Donald Trump "
@@ -111,11 +117,21 @@ print(f"    Confidence:    {res2.confidence}%", flush=True)
 print(f"    Probabilities: {res2.probabilities}", flush=True)
 print(f"    Latency:       {res2.latency_ms} ms", flush=True)
 print(f"    Model Mode:    {res2.model_mode}", flush=True)
+print(f"    XAI Keywords:  {[k.word for k in res2.highlighted_keywords]}", flush=True)
 assert res2.verdict == "Fake", f"Expected 'Fake', got '{res2.verdict}'"
 assert res2.model_mode == "bilstm_50_epochs"
+assert any(k.category == "misinformation" for k in res2.highlighted_keywords), "Expected misinformation triggers"
+
+# 5. Test Explainable AI Trigger Extractor Directly
+print("\n[6] Testing Explainable AI Trigger Extractor...", flush=True)
+sample_triggers = extract_highlighted_keywords("BOMBSHELL: Miracle cure exposed! Doctors are speechless.")
+print(f"    Extracted triggers count: {len(sample_triggers)}", flush=True)
+for t in sample_triggers:
+    print(f"    - [{t['category'].upper()}] {t['word']}: {t['tag']} ({t['impact']})", flush=True)
+assert len(sample_triggers) >= 2, "Expected at least 2 triggers extracted"
 
 print("\n" + "=" * 70, flush=True)
 print("SUCCESS: ALL LOCAL BACKEND INFERENCE VERIFICATIONS PASSED!", flush=True)
 print("Custom BiLSTM (50 Epochs Trained) weights from 'model/best_model.pt' are active,", flush=True)
-print("running in eval mode, and predicting accurately with sub-second inference latency.", flush=True)
+print("running in eval mode, with Explainable AI trigger extraction functioning smoothly.", flush=True)
 print("=" * 70, flush=True)

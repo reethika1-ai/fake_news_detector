@@ -5,6 +5,8 @@ VeriNews AI — Production FastAPI Serverless Backend
 =============================================================================
 Model Architecture: Custom Bidirectional LSTM (BiLSTM) trained for 50 Epochs
 Inference Engine:   PyTorch (CUDA/CPU fallback) with Custom Word Tokenizer
+Explainable AI:     Lexical & Stylistic Trigger Extraction (XAI)
+URL Ingestion:      Live Web News Scraping Endpoint (/api/scrape-url)
 Telemetry & DB:     Supabase Asynchronous Background Logging (prediction_logs)
 =============================================================================
 """
@@ -14,9 +16,10 @@ import re
 import sys
 import time
 import json
+import urllib.parse
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from contextlib import asynccontextmanager
 
 import torch
@@ -162,6 +165,195 @@ class FakeNewsBiLSTM(nn.Module):
         feat = self.dropout(hidden)
         logits = self.fc(feat)
         return logits.squeeze(-1)
+
+
+# -----------------------------------------------------------------------------
+# Explainable AI (XAI) / Lexical Trigger Extraction
+# -----------------------------------------------------------------------------
+def extract_highlighted_keywords(text: str) -> list[dict]:
+    """
+    Analyzes article text for explicit credibility markers and sensationalist
+    misinformation triggers, enabling transparent Explainable AI during evaluation.
+    """
+    lower_text = text.lower()
+
+    fake_patterns = [
+        ("shocking", "Sensationalist Trigger", "Misinformation Risk"),
+        ("shocks", "Sensationalist Trigger", "Misinformation Risk"),
+        ("leaked", "Unverified Leak Claim", "Misinformation Risk"),
+        ("whistleblower", "Anonymous Allegation", "Misinformation Risk"),
+        ("bombshell", "Sensationalist Clickbait", "Misinformation Risk"),
+        ("miracle cure", "Unverified Health Claim", "High Misinformation Risk"),
+        ("cure for all", "Unverified Health Claim", "High Misinformation Risk"),
+        ("they don't want you to know", "Conspiracy Trope", "High Misinformation Risk"),
+        ("conspiracy", "Conspiracy Marker", "Misinformation Risk"),
+        ("hoax", "Fabrication Allegation", "Misinformation Risk"),
+        ("cover-up", "Conspiracy Trope", "Misinformation Risk"),
+        ("cover up", "Conspiracy Trope", "Misinformation Risk"),
+        ("banned", "Censorship Trope", "Misinformation Risk"),
+        ("censored", "Censorship Trope", "Misinformation Risk"),
+        ("mainstream media won't tell", "Anti-Media Trope", "High Misinformation Risk"),
+        ("you won't believe", "Clickbait Framing", "Misinformation Risk"),
+        ("exposed", "Sensationalist Framing", "Misinformation Risk"),
+        ("secret", "Secret/Forbidden Narrative", "Misinformation Risk"),
+        ("globalist", "Conspiracy Trope", "Misinformation Risk"),
+        ("pyramid", "Pseudoscience Marker", "High Misinformation Risk"),
+        ("deep state", "Conspiracy Trope", "Misinformation Risk"),
+        ("urgent alert", "Manufactured Urgency", "Misinformation Risk"),
+        ("hollow metal sphere", "Extraterrestrial Trope", "High Misinformation Risk"),
+        ("nano-dust", "Pseudoscience Marker", "High Misinformation Risk"),
+        ("chemtrails", "Conspiracy Trope", "High Misinformation Risk"),
+        ("forbidden remedy", "Medical Misinformation", "High Misinformation Risk"),
+        ("potato juice", "Medical Misinformation", "High Misinformation Risk"),
+    ]
+
+    real_patterns = [
+        ("reuters", "Primary News Wire", "High Credibility"),
+        ("associated press", "Primary News Wire", "High Credibility"),
+        ("ap news", "Primary News Wire", "High Credibility"),
+        ("bloomberg", "Financial Wire", "High Credibility"),
+        ("spokesperson", "Attributed Spokesperson", "Journalistic Attribution"),
+        ("official statement", "Formal Press Release", "Journalistic Attribution"),
+        ("statement released", "Formal Press Release", "Journalistic Attribution"),
+        ("bipartisan", "Legislative Context", "Institutional Factuality"),
+        ("supreme court", "Judicial Body Citation", "Institutional Factuality"),
+        ("federal reserve", "Central Bank Citation", "Institutional Factuality"),
+        ("published in", "Academic/Press Citation", "Journalistic Attribution"),
+        ("study published", "Peer-Reviewed Citation", "Journalistic Attribution"),
+        ("court documents", "Legal Record Citation", "Journalistic Attribution"),
+        ("white house", "Government Administration", "Institutional Factuality"),
+        ("senate", "Legislative Chamber", "Institutional Factuality"),
+        ("congress", "Legislative Chamber", "Institutional Factuality"),
+        ("department of", "Government Department", "Institutional Factuality"),
+        ("police reported", "Law Enforcement Attribution", "Journalistic Attribution"),
+        ("announced on", "Attributed Event", "Journalistic Attribution"),
+        ("confirmed that", "Factually Verified", "Journalistic Attribution"),
+        ("investigation concluded", "Official Inquiry", "Journalistic Attribution"),
+        ("peer-reviewed", "Scientific Citation", "High Credibility"),
+    ]
+
+    highlights = []
+    seen = set()
+
+    for phrase, tag, impact in fake_patterns:
+        pattern = r'\b' + re.escape(phrase) + r'\b'
+        matches = list(re.finditer(pattern, lower_text))
+        if matches and phrase not in seen:
+            seen.add(phrase)
+            highlights.append({
+                "word": phrase,
+                "category": "misinformation",
+                "tag": tag,
+                "impact": impact,
+                "count": len(matches)
+            })
+
+    for phrase, tag, impact in real_patterns:
+        pattern = r'\b' + re.escape(phrase) + r'\b'
+        matches = list(re.finditer(pattern, lower_text))
+        if matches and phrase not in seen:
+            seen.add(phrase)
+            highlights.append({
+                "word": phrase,
+                "category": "credibility",
+                "tag": tag,
+                "impact": impact,
+                "count": len(matches)
+            })
+
+    exclamation_count = text.count("!")
+    if exclamation_count >= 2:
+        highlights.append({
+            "word": f"Exclamation Marks ({exclamation_count}x)",
+            "category": "misinformation",
+            "tag": "Sensationalist Punctuation",
+            "impact": "Heightened Urgency Alert",
+            "count": exclamation_count
+        })
+
+    caps_count = sum(1 for c in text if c.isupper())
+    caps_ratio = caps_count / max(len(text), 1)
+    if caps_ratio > 0.18 and len(text) > 25:
+        highlights.append({
+            "word": f"Excessive Uppercase ({round(caps_ratio*100)}%)",
+            "category": "misinformation",
+            "tag": "ALL-CAPS Sensationalism",
+            "impact": "Clickbait Style Trigger",
+            "count": 1
+        })
+
+    return highlights
+
+
+# -----------------------------------------------------------------------------
+# Live URL Scraper Helper
+# -----------------------------------------------------------------------------
+def scrape_article_from_url(url: str) -> tuple[str, str, str]:
+    """
+    Fetches an online news article URL, strips boilerplate navigation/scripts,
+    and extracts the main headline and body text for classification.
+    Returns: (headline, combined_text, domain)
+    """
+    import requests
+    from bs4 import BeautifulSoup
+
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme or parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Invalid URL scheme. The URL must begin with http:// or https://")
+    domain = parsed.netloc
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=400, detail=f"Could not retrieve webpage content: {str(e)}")
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    # Remove non-content elements
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside", "noscript", "form", "svg"]):
+        tag.decompose()
+
+    # Extract headline
+    headline = ""
+    og_title = soup.find("meta", property="og:title") or soup.find("meta", attrs={"name": "twitter:title"})
+    if og_title and og_title.get("content"):
+        headline = og_title["content"].strip()
+    if not headline:
+        h1 = soup.find("h1")
+        if h1:
+            headline = h1.get_text(strip=True)
+    if not headline:
+        title_tag = soup.find("title")
+        if title_tag:
+            headline = title_tag.get_text(strip=True)
+
+    # Extract article body paragraphs
+    paragraphs = []
+    article_container = soup.find("article") or soup.find("main") or soup
+    for p in article_container.find_all("p"):
+        p_text = p.get_text(strip=True)
+        # Filter noise, disclaimers, and tiny tags
+        if len(p_text) > 25 and not any(w in p_text.lower() for w in ["cookie policy", "terms of service", "all rights reserved", "subscribe now"]):
+            paragraphs.append(p_text)
+
+    if not paragraphs:
+        text_content = soup.get_text(separator=" ", strip=True)
+        paragraphs = [text_content[:1500]]
+
+    article_text = " ".join(paragraphs[:15])
+    combined_text = f"{headline} — {article_text}" if headline else article_text
+
+    if len(combined_text.strip()) < 30:
+        raise HTTPException(status_code=400, detail="Could not extract substantive article body text from this URL.")
+
+    return headline or "Scraped Web Article", combined_text, domain
 
 
 # -----------------------------------------------------------------------------
@@ -318,8 +510,8 @@ load_model_and_tokenizer()
 # -----------------------------------------------------------------------------
 app = FastAPI(
     title="VeriNews AI — Fake News & Misinformation Detector",
-    description="Serverless API powered by a 50-epoch Bidirectional LSTM (BiLSTM) with Supabase persistence.",
-    version="3.0.0",
+    description="Serverless API powered by a 50-epoch Bidirectional LSTM (BiLSTM) with Supabase persistence and XAI trigger extraction.",
+    version="3.1.0",
     lifespan=lifespan
 )
 
@@ -335,6 +527,13 @@ app.add_middleware(
 # -----------------------------------------------------------------------------
 # Pydantic Schemas
 # -----------------------------------------------------------------------------
+class HighlightedKeyword(BaseModel):
+    word: str
+    category: str
+    tag: str
+    impact: str
+    count: int = 1
+
 class PredictRequest(BaseModel):
     text: str = Field(..., min_length=1, description="News text or headline to classify")
 
@@ -345,8 +544,19 @@ class PredictResponse(BaseModel):
     latency_ms: float
     model_mode: str
     architecture: str
+    highlighted_keywords: List[HighlightedKeyword] = []
     logged_to_supabase: bool
     timestamp: str
+
+class ScrapeUrlRequest(BaseModel):
+    url: str = Field(..., description="Web URL of news article to scrape and analyze")
+
+class ScrapeUrlResponse(BaseModel):
+    url: str
+    headline: str
+    article_text: str
+    domain: str
+    prediction: PredictResponse
 
 
 # -----------------------------------------------------------------------------
@@ -392,6 +602,10 @@ async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
 
     start_time = time.perf_counter()
 
+    # Extract Explainable AI keywords
+    keywords_raw = extract_highlighted_keywords(text)
+    keywords = [HighlightedKeyword(**k) for k in keywords_raw]
+
     # 1. Neural BiLSTM Inference Path (Active when weights are loaded)
     if model_loaded and model is not None and tokenizer is not None:
         try:
@@ -428,7 +642,7 @@ async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
                 "Fake": round(prob_fake * 100.0, 2)
             }
             active_mode = "bilstm_50_epochs"
-            active_arch = f"FakeNewsBiLSTM (50 Epochs Trained)"
+            active_arch = "FakeNewsBiLSTM (50 Epochs Trained)"
 
         except Exception as e:
             print(f"[Inference Error] BiLSTM forward pass failed: {e}. Falling back to linguistic heuristics.")
@@ -450,8 +664,29 @@ async def predict(request: PredictRequest, background_tasks: BackgroundTasks):
         latency_ms=latency_ms,
         model_mode=active_mode,
         architecture=active_arch,
+        highlighted_keywords=keywords,
         logged_to_supabase=supabase_client is not None,
         timestamp=datetime.utcnow().isoformat()
+    )
+
+
+@app.post("/api/scrape-url", response_model=ScrapeUrlResponse)
+async def scrape_and_predict(request: ScrapeUrlRequest, background_tasks: BackgroundTasks):
+    url = request.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL cannot be empty.")
+
+    headline, combined_text, domain = scrape_article_from_url(url)
+
+    pred_req = PredictRequest(text=combined_text)
+    prediction = await predict(pred_req, background_tasks)
+
+    return ScrapeUrlResponse(
+        url=url,
+        headline=headline,
+        article_text=combined_text[:1200] + ("..." if len(combined_text) > 1200 else ""),
+        domain=domain,
+        prediction=prediction
     )
 
 
